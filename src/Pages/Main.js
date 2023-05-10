@@ -1,29 +1,45 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, FlatList, StyleSheet } from "react-native";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from "react-native-vector-icons/MaterialIcons";
 
-const Main = ({navigation}) => {
-  const data = [
-    {
-      id: "1",
-      title: "Código Limpo",
-      anotations: "Livro muito bom!",
-      read: false,
-    },
-    {
-      id: "2",
-      title: "C Completo e Total",
-      anotations: "Livro muito bom!",
-      read: false,
-    },
-    {
-      id: "3",
-      title: "A bíblia do PHP",
-      anotations: "Livro muito bom!",
-      read: true,
-    }
-  ]
+const Main = ({ navigation }) => {
+
+  const [books, setBooks] = useState([]);
+  useEffect(() => {
+    //AsyncStorage.removeItem("books");
+    AsyncStorage.getItem("books").then(data => {
+      const book = JSON.parse(data);
+      setBooks(book);
+    });
+}, []);
+
+  const onNewBook = () => {
+    navigation.navigate('Book');
+  }
+
+  const bookEdit = (bookId) => {
+    const book = books.find(item => item.id === bookId);
+    navigation.navigate('Book', { book: book, isEdit: true });
+  }
+
+  const bookDelete = async (bookId) => {
+    const newBooks = books.filter(item => item.id !== bookId);
+    await AsyncStorage.setItem("books", JSON.stringify(newBooks));
+    setBooks(newBooks);
+  }
+
+  const onBookRead = async (bookId) => {
+    const newBooks = books.map(item => {
+      if (item.id === bookId) {
+        item.read = !item.read;
+      }
+      return item;
+    });
+
+    await AsyncStorage.setItem("books", JSON.stringify(newBooks));
+    setBooks(newBooks);
+  }
 
   return (
     <View style={styles.container}>
@@ -31,21 +47,39 @@ const Main = ({navigation}) => {
         <Text style={styles.title}>Lista de Leitura</Text>
         <TouchableOpacity
           style={styles.toolboxButton}
-          onPress={() => {
-            navigation.navigate("Book");
-          }}
-          >
-          <Icon name="add" size={14} color="#fff" />
+          onPress={onNewBook}>
+          <Icon name="add" size={25} color="#fff" />
         </TouchableOpacity>
       </View>
-      {
-        data.map((value,i) => (
-          <TouchableOpacity key={value.id} onPress={() => console.log(value)} style={styles.itemButton}>
-            <Text style={styles.itemText}>{value.title}</Text>
-          </TouchableOpacity>
-        ))
-      }
-      
+
+      <FlatList
+        data={books}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => (
+          <View style={styles.itemsContainer}>
+            <TouchableOpacity
+              style={styles.itemButton}
+              onPress={() => onBookRead(item.id)}>
+              <Text style={[styles.itemText, item.read ?
+                styles.itemRead : '']}>{item.title}</Text>
+            </TouchableOpacity>
+            <View style={styles.buttons}>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => bookEdit(item.id)} >
+                <Icon name="create" size={22} color="#2ecc71" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => bookDelete(item.id)} >
+                <Icon name="delete" size={22} color="#e74c3c" />
+              </TouchableOpacity>
+            </View>
+
+          </View>
+        )}
+      />
     </View>
   )
 }
@@ -61,8 +95,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: 26,
-    color: "#3498db",
+    fontSize: 16,
   },
   toolboxButton: {
     backgroundColor: "#3498db",
@@ -72,12 +105,27 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  itemButton: {
-
+  itemsContainer: {
+    border: 'solid',
+    padding: 5,
+    borderLeftColor: '#fff',
+    borderTopColor: '#fff',
+    borderRightColor: '#fff',
+    borderBottomColor: "#3498db",
+    borderBottomWidth: 1
   },
   itemText: {
     fontSize: 16,
   },
+  buttons: {
+    marginLeft: '80%',
+    flexDirection: 'row',
+    marginTop: -20
+  },
+
 });
+
+
+
 
 export default Main;

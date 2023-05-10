@@ -1,17 +1,34 @@
-import React, { useState } from 'react';
-import uuid from 'react-native-uuid';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
-import { getData, setData } from '../storeData';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Book = ({ navigation }) => {
-  const [title, setTitle] = useState();
-  const [description, setDescription] = useState();
+
+  const book = navigation.getParam("book", {
+    title: '',
+    description: ''
+  });
+
+
+  const [books, setBooks] = useState([]);
+  const [title, setTitle] = useState(book.title);
+  const [description, setDescription] = useState(book.description);
+  const [read, setRead] = useState(book.read);
+  const isEdit = navigation.getParam("isEdit", false);
+
+
+  useEffect(() => {
+
+    AsyncStorage.getItem("books").then(data => {
+      if (data) {
+        const book = JSON.parse(data);
+        setBooks(book);
+      }
+    });
+
+
+  }, []);
+
 
   const isValid = () => {
     if (title !== undefined && title !== '') {
@@ -22,25 +39,47 @@ const Book = ({ navigation }) => {
   };
 
   const onSave = async () => {
-
-    if (!await getData()) {
-      await setData([])
-    }
-    let dados = await getData()
-
-    console.log(await getData())
     if (isValid()) {
-      const book = {
-        id: `${uuid.v4()}`,
-        title,
-        anotations: description,
-        read: false,
+      if (isEdit) {
+        // altera o livro corrente
+        let newBooks = books;
+
+        newBooks.map(item => {
+          if (item.id === book.id) {
+            item.title = title;
+            item.description = description;
+            item.read = read;
+          }
+          return item;
+        });
+
+        console.log("books", books);
+        console.log("newBooks", newBooks);
+
+        await AsyncStorage.setItem('books', JSON.stringify(newBooks));
+
+      } else {
+
+        // adiciona um livro
+        const id = Math.random(99999999).toString();
+
+        const data = {
+          id,
+          title,
+          description,
+          read,
+        };
+
+        books.push(data);
+
+        await AsyncStorage.setItem('books', JSON.stringify(books));
       }
-      dados.push(book)
-      setData(dados)
+
+      navigation.goBack();
 
     } else {
-      console.log('Tente Novamente')
+
+      console.log('Inválido!');
     }
   };
 
@@ -65,9 +104,8 @@ const Book = ({ navigation }) => {
           setDescription(text);
         }}
       />
-
-      <TouchableOpacity 
-        style={[styles.saveButton, (!isValid()) ? styles.saveButtonInvalid : '']} 
+      <TouchableOpacity
+        style={[styles.saveButton, (!isValid()) ? styles.saveButtonInvalid : '']}
         onPress={onSave}>
         <Text style={styles.saveButtonText}>Cadastrar</Text>
       </TouchableOpacity>
@@ -81,7 +119,8 @@ const Book = ({ navigation }) => {
       </TouchableOpacity>
     </View>
   );
-};
+}
+
 
 const styles = StyleSheet.create({
   container: {
